@@ -122,8 +122,9 @@ def gemini_text(data):
     key = os.getenv("GEMINI_API_KEY")
     if not key:
         return None
-    models = [m for m in [os.getenv("GEMINI_MODEL"), os.getenv("GEMINI_MODEL_FALLBACK"),
-                          "gemini-3-flash-preview", "gemini-3.8-flash"] if m]
+    candidates = [os.getenv("GEMINI_MODEL"), os.getenv("GEMINI_MODEL_FALLBACK"),
+                  "gemini-3-flash-preview", "gemini-3.8-flash"]
+    models = list(dict.fromkeys(m for m in candidates if m))
     facts = [{k: (round(v, 2) if isinstance(v, float) else v) for k, v in d.items()} for d in data]
     prompt = (
         "你是一位克制、专业的财经专栏作者，为个人微信公众号写一篇《A股周记》。\n"
