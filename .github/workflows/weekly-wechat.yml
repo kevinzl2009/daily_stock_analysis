@@ -1,0 +1,52 @@
+name: 公众号周记
+
+# 每周五收盘后生成 A股四大指数周记（公众号格式）并发到邮箱
+on:
+  schedule:
+    - cron: '30 10 * * 5'   # 周五 UTC 10:30 = 北京/新加坡时间 18:30
+  workflow_dispatch:
+    inputs:
+      no_email:
+        description: '只生成不发邮件（测试用）'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖和中文字体
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk >/dev/null
+          pip install -q requests pillow akshare
+
+      - name: 生成公众号周记
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || secrets.GEMINI_MODEL }}
+          GEMINI_MODEL_FALLBACK: ${{ vars.GEMINI_MODEL_FALLBACK || secrets.GEMINI_MODEL_FALLBACK }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
+        run: |
+          if [ "${{ github.event.inputs.no_email }}" = "true" ]; then
+            python wechat_weekly/weekly_article.py --no-email
+          else
+            python wechat_weekly/weekly_article.py
+          fi
+
+      - name: 保存文章和封面
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: wechat-weekly-${{ github.run_number }}
+          path: reports/wechat/
+          retention-days: 30
